@@ -128,54 +128,118 @@ public:
     // No locks.
     // No JUCE.
     //
-    // Coefficients are recalculated once per block rather than once per
-    // sample. Gain smoothing is still continuous over the block.
-    void process(float* samples, std::size_t numSamples)
+    
+    // Call once at the beginning of an audio block.
+    // Updates the smoothed gains and corresponding biquad coefficients.
+    void beginBlock(std::size_t numSamples) noexcept
+    {
+        if (!prepared_ || numSamples == 0)
+            return;
+
+        // Block-rate smoothing.
+        //
+        // smoothingCoeff_ is the per-sample smoothing coefficient.
+        // Convert it to the equivalent coefficient for this block.
+        const float blockSmoothing =
+            1.0f - std::pow(1.0f - smoothingCoeff_,
+                            static_cast<float>(numSamples));
+
+        for (std::size_t i = 0; i < NumBands; ++i)
+        {
+            const float target = targetGain_[i].load(std::memory_order_relaxed);
+
+            currentGain_[i] +=
+                (target - currentGain_[i]) * blockSmoothing;
+
+            filters_[i].updateCoefficients(
+                frequencies_[i],
+                q_[i],
+                currentGain_[i],
+                sampleRate_);
+        }
+    }
+
+
+    // Process one sample through the complete graphic EQ.
+    //
+    // This contains only the actual per-sample DSP.
+    // It does not update parameters or coefficients.
+    float processSample(float sample) noexcept
+    {
+        if (!prepared_)
+            return sample;
+
+        for (std::size_t i = 0; i < NumBands; ++i)
+            sample = filters_[i].process(sample);
+
+        return sample;
+    }
+
+
+    // Process a complete block.
+    //
+    // This preserves the original GraphicEQ interface and behavior,
+    // while internally using beginBlock() + processSample().
+    void process(float* samples, std::size_t numSamples) noexcept
     {
         if (!prepared_ || samples == nullptr || numSamples == 0)
             return;
 
-        // -------------------------------------------------------------
-        // Update smoothed gains once for this block.
-        // -------------------------------------------------------------
-
-        const float blockSmoothing =
-            1.0f -
-            std::pow(
-                1.0f - smoothingCoeff_,
-                static_cast<float>(numSamples));
-
-        for (std::size_t band = 0; band < NumBands; ++band)
-        {
-            const float target =
-                targetGain_[band].load(
-                    std::memory_order_relaxed);
-
-            currentGain_[band] +=
-                blockSmoothing *
-                (target - currentGain_[band]);
-
-            filters_[band].updateCoefficients(
-                frequencies_[band],
-                q_[band],
-                currentGain_[band],
-                sampleRate_);
-        }
-
-        // -------------------------------------------------------------
-        // Process audio.
-        // -------------------------------------------------------------
+        beginBlock(numSamples);
 
         for (std::size_t n = 0; n < numSamples; ++n)
-        {
-            float x = samples[n];
-
-            for (std::size_t band = 0; band < NumBands; ++band)
-                x = filters_[band].process(x);
-
-            samples[n] = x;
-        }
+            samples[n] = processSample(samples[n]);
     }
+    
+    
+//    // Coefficients are recalculated once per block rather than once per
+//    // sample. Gain smoothing is still continuous over the block.
+//    void process(float* samples, std::size_t numSamples)
+//    {
+//        if (!prepared_ || samples == nullptr || numSamples == 0)
+//            return;
+//
+//        // -------------------------------------------------------------
+//        // Update smoothed gains once for this block.
+//        // -------------------------------------------------------------
+//
+//        const float blockSmoothing =
+//            1.0f -
+//            std::pow(
+//                1.0f - smoothingCoeff_,
+//                static_cast<float>(numSamples));
+//
+//        for (std::size_t band = 0; band < NumBands; ++band)
+//        {
+//            const float target =
+//                targetGain_[band].load(
+//                    std::memory_order_relaxed);
+//
+//            currentGain_[band] +=
+//                blockSmoothing *
+//                (target - currentGain_[band]);
+//
+//            filters_[band].updateCoefficients(
+//                frequencies_[band],
+//                q_[band],
+//                currentGain_[band],
+//                sampleRate_);
+//        }
+//
+//        // -------------------------------------------------------------
+//        // Process audio.
+//        // -------------------------------------------------------------
+//
+//        for (std::size_t n = 0; n < numSamples; ++n)
+//        {
+//            float x = samples[n];
+//
+//            for (std::size_t band = 0; band < NumBands; ++band)
+//                x = filters_[band].process(x);
+//
+//            samples[n] = x;
+//        }
+//    }
 
     // ---------------------------------------------------------------------
     // Reset
