@@ -310,7 +310,13 @@ EchoShapeAudioProcessorEditor::EchoShapeAudioProcessorEditor (EchoShapeAudioProc
 EchoShapeAudioProcessorEditor::~EchoShapeAudioProcessorEditor()
 {
     stopTimer();
-//    setLookAndFeel (nullptr);
+    // Restore exactly the value that was present before Freeze.
+    feedbackSlider.setValue (
+        feedbackBeforeFreeze,
+        juce::sendNotificationSync);
+
+    freezeActive = false;
+    audioProcessor.setFreeze (freezeActive);
 }
 
 //==============================================================================
@@ -535,6 +541,8 @@ void EchoShapeAudioProcessorEditor::toggleFreeze()
 
         freezeActive = false;
     }
+    
+    audioProcessor.setFreeze (freezeActive);
 
     freezeButton.setToggleState (
         freezeActive,

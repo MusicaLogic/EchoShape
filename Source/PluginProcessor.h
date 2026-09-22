@@ -21,6 +21,7 @@
 /**
 */
 class EchoShapeAudioProcessor  : public juce::AudioProcessor,
+                                    public juce::AudioProcessorValueTreeState::Listener,
                                     public juce::ChangeBroadcaster
 {
 public:
@@ -71,6 +72,8 @@ public:
     GraphicEQ::Gains getGains() const;
     EQState getEQState() const;
     void setEQState(const EQState& state);
+    
+    void setFreeze(bool freeze) noexcept;
     //==============================================================================
     SpectrumDataBuffer<
         SpectrumAnalyzer::numSpectrumBands>&
@@ -82,8 +85,13 @@ public:
 private:
     //==============================================================================
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void parameterChanged(const juce::String& id, float newValue) override;
     
     // EQ DSP-related
+    // for saving/loading state
+    juce::ValueTree createEQState() const;
+    bool restoreEQState(const juce::ValueTree& state);
+    // variables
     static constexpr std::size_t NumChannels = 2;
     std::array<FeedbackDelay, NumChannels> feedbackDelay_;
     EQState eqState;

@@ -44,7 +44,9 @@ void FeedbackDelay::prepare(double sampleRate,
     delayTimeCurrentSamples_ =
         std::clamp(initialDelaySeconds, 0.0f, maxDelaySeconds_)
         * static_cast<float>(sampleRate_);
-
+    
+    freeze_ = 0;
+    
     prepared_ = true;
 }
 
@@ -107,6 +109,13 @@ void FeedbackDelay::setWet(float wet) noexcept
         wet,
         std::memory_order_relaxed
     );
+}
+
+//==============================================================================
+
+void FeedbackDelay::setFreeze(bool freeze) noexcept
+{
+    freeze_.store(freeze, std::memory_order_relaxed);
 }
 
 //==============================================================================
@@ -230,8 +239,8 @@ float FeedbackDelay::processSample(float input) noexcept
     //    The final delayed output remains un-EQ'd.
     //--------------------------------------------------------------------------
 
-    const float equalizedFeedback =
-        graphicEQ_.processSample(delayedSample);
+//    const float equalizedFeedback =
+//        graphicEQ_.processSample(delayedSample);
 
     //-------------------------------------------------------------------------- 
     // 3. Put the EQ'd signal back into the feedback path.
@@ -239,11 +248,25 @@ float FeedbackDelay::processSample(float input) noexcept
 
     const float feedback =
         feedback_.load(std::memory_order_relaxed);
-
+    
+    const float freeze =
+        (float)freeze_.load(std::memory_order_relaxed);
+    
+//    const float bufferInput =
+//        (1.0f-freeze)*input + feedback * equalizedFeedback;
+    
+//    writeDelay(bufferInput);
+    
     const float bufferInput =
-        input + feedback * equalizedFeedback;
+        (1.0f-freeze)*input + feedback * delayedSample;
+    
+    const float equalizedBufferInput =
+        graphicEQ_.processSample(bufferInput);
+    
+//    const float clippedBufferInput = equalizedBufferInput > 0.5 ? 0.5 :
+//                equalizedBufferInput < -0.5 ? 0.5 : equalizedBufferInput;
 
-    writeDelay(bufferInput);
+    writeDelay(equalizedBufferInput);
 
     //-------------------------------------------------------------------------- 
     // 4. Return the normal delay output.
@@ -252,8 +275,7 @@ float FeedbackDelay::processSample(float input) noexcept
     const float wet =
         wet_.load(std::memory_order_relaxed);
 
-    return input * (1.0f - wet)
-         + delayedSample * wet;
+    return input + delayedSample * wet;
 }
 
 //==============================================================================

@@ -42,6 +42,7 @@ public:
     void setDelayTime(float seconds) noexcept;
     void setFeedback(float feedback) noexcept;
     void setWet(float wet) noexcept;
+    void setFreeze(bool freeze) noexcept;
 
     void setEQGains(const GraphicEQ::Gains& gains) noexcept;
     void setEQGain(std::size_t band, float gainDb) noexcept;
@@ -91,6 +92,7 @@ private:
     // changed from the UI / parameter thread.
     std::atomic<float> feedback_ { 0.5f };
     std::atomic<float> wet_      { 0.5f };
+    std::atomic<bool> freeze_ { false };
 
     // The EQ belongs to this delay instance.
     GraphicEQ graphicEQ_;

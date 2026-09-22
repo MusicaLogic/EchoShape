@@ -129,6 +129,32 @@ void EchoShapeAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 
     inputSpectrumAnalyzer.reset();
     outputSpectrumAnalyzer.reset();
+    
+    // Load parameters from value tree
+    float time = *parameters.getRawParameterValue("time");
+    float feedback = *parameters.getRawParameterValue("feedback");
+    float wet = *parameters.getRawParameterValue("wet");
+    
+    for (auto& fd : feedbackDelay_){
+        fd.setDelayTime(time);
+        fd.setFeedback(feedback);
+        fd.setWet(wet);
+    }
+    
+    parameters.addParameterListener("time", this);
+    parameters.addParameterListener("feedback", this);
+    parameters.addParameterListener("wet", this);
+}
+
+void EchoShapeAudioProcessor::parameterChanged(const juce::String& id, float newValue)
+{
+    if(id == "time"){
+        for (auto& fd : feedbackDelay_) fd.setDelayTime(newValue);
+    }else if(id == "feedback"){
+        for (auto& fd : feedbackDelay_) fd.setFeedback(newValue);
+    }else if(id == "wet"){
+        for (auto& fd : feedbackDelay_) fd.setWet(newValue);
+    }
 }
 
 void EchoShapeAudioProcessor::releaseResources()
@@ -235,17 +261,97 @@ juce::AudioProcessorEditor* EchoShapeAudioProcessor::createEditor()
     return new EchoShapeAudioProcessorEditor (*this);
 }
 
-//==============================================================================
-void EchoShapeAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void EchoShapeAudioProcessor::getStateInformation(
+    juce::MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
-    juce::ValueTree state("EQState");
+    juce::ValueTree state("EchoShapeState");
+
     state.setProperty(
         "version",
         1,
         nullptr);
+
+    // ============================================================
+    // EQ state
+    // ============================================================
+    
+    state.addChild(
+        createEQState(),
+        -1,
+        nullptr);
+    
+    // ============================================================
+    // Effect parameters
+    // ============================================================
+    
+    state.addChild(
+        parameters.copyState(),
+        -1,
+        nullptr);
+    
+    // ============================================================
+    // Serialize
+    // ============================================================
+
+    if (auto xml = state.createXml())
+        copyXmlToBinary(*xml, destData);
+}
+
+void EchoShapeAudioProcessor::setStateInformation(
+    const void* data,
+    int sizeInBytes)
+{
+    auto xml = getXmlFromBinary(
+        data,
+        sizeInBytes);
+
+    if (xml == nullptr)
+        return;
+
+    if (!xml->hasTagName("EchoShapeState"))
+        return;
+
+    juce::ValueTree state =
+        juce::ValueTree::fromXml(*xml);
+
+    if (!state.isValid())
+        return;
+
+    // ============================================================
+    // Version
+    // ============================================================
+
+    const int version =
+        state.getProperty("version", 1);
+
+    // Future migration code can go here.
+    juce::ignoreUnused(version);
+    
+    // ============================================================
+    // Effect parameters
+    // ============================================================
+
+    auto parameterState =
+        state.getChildWithName(
+            parameters.state.getType());
+
+    if (parameterState.isValid())
+        parameters.replaceState(parameterState);
+
+    // ============================================================
+    // EQ state
+    // ============================================================
+
+    auto eqState =
+        state.getChildWithName("EQState");
+
+    if (eqState.isValid())
+        restoreEQState(eqState);
+}
+
+juce::ValueTree EchoShapeAudioProcessor::createEQState() const
+{
+    juce::ValueTree state("EQState");
 
     for (std::size_t i = 0;
          i < EQState::NumBands;
@@ -257,27 +363,15 @@ void EchoShapeAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
             nullptr);
     }
 
-    if (auto xml = state.createXml())
-        copyXmlToBinary(*xml, destData);
+    return state;
 }
 
-void EchoShapeAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+bool EchoShapeAudioProcessor::restoreEQState(
+    const juce::ValueTree& state)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
-    auto xml = getXmlFromBinary(
-        data,
-        sizeInBytes);
-    // just to examine if version is the correct one in the future,
-    // if we need to update what we save
-//    const int version =
-//        xml->getIntAttribute("version", 1);
-
-    if (xml == nullptr)
-        return;
-
-    if (!xml->hasTagName("EQState"))
-        return;
+    if (!state.isValid() ||
+        !state.hasType("EQState"))
+        return false;
 
     EQState newState;
 
@@ -287,12 +381,14 @@ void EchoShapeAudioProcessor::setStateInformation (const void* data, int sizeInB
     {
         newState.gains[i] =
             static_cast<float>(
-                xml->getDoubleAttribute(
+                state.getProperty(
                     "gain_" + juce::String(i),
-                    0.0));
+                    0.0f));
     }
 
     setEQState(newState);
+
+    return true;
 }
 
 void EchoShapeAudioProcessor::reset()
@@ -302,6 +398,12 @@ void EchoShapeAudioProcessor::reset()
 }
 
 // EQ DSP-related functions
+void EchoShapeAudioProcessor::setFreeze(bool freeze) noexcept
+{
+    for (auto& fd : feedbackDelay_)
+        fd.setFreeze(freeze);
+}
+
 void EchoShapeAudioProcessor::setGain(std::size_t band, float gainDb){
     for (auto& fd : feedbackDelay_)
         fd.setEQGain(band, gainDb);
