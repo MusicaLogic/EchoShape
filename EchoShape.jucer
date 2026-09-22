@@ -6,6 +6,9 @@
     <GROUP id="{EF7CE71E-8C59-6C5D-0C84-74DAC81674B3}" name="Source">
       <GROUP id="{1E160FD4-0862-FD6D-A6CD-6F5C11B983C8}" name="DSP">
         <FILE id="MVndGp" name="EQConstants.h" compile="0" resource="0" file="Source/DSP/EQConstants.h"/>
+        <FILE id="eNueJc" name="FeedbackDelay.cpp" compile="1" resource="0"
+              file="Source/DSP/FeedbackDelay.cpp"/>
+        <FILE id="eA3OB9" name="FeedbackDelay.h" compile="0" resource="0" file="Source/DSP/FeedbackDelay.h"/>
         <FILE id="uyj1yD" name="GraphicEQ.h" compile="0" resource="0" file="Source/DSP/GraphicEQ.h"/>
         <FILE id="oib5lZ" name="SpectrumAnalyzer.cpp" compile="1" resource="0"
               file="Source/DSP/SpectrumAnalyzer.cpp"/>
