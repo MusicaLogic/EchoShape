@@ -18,8 +18,8 @@ EchoShape is an experimental project exploring the interaction between **delay, 
 
 More information and demonstrations:
 
-* [YouTube demonstration]
-* [MusicaLogic blog post]
+* https://youtu.be/rhNNRsexdyw
+* https://musicalogic.wordpress.com/2026/09/22/echoshape-shape-the-echo-and-what-if-it-doesnt-end/
 
 Part of the **MusicaLogic** experimental VST collection.
 
