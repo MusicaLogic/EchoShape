@@ -116,6 +116,15 @@ void FeedbackDelay::setEQGains(const GraphicEQ::Gains& gains) noexcept
     graphicEQ_.setGains(gains);
 }
 
+void FeedbackDelay::setEQGain(std::size_t band, float gainDb) noexcept
+{
+    graphicEQ_.setGain(band, gainDb);
+}
+
+float FeedbackDelay::getEQGain(std::size_t band) const{
+    return graphicEQ_.getGain(band);
+}
+
 //==============================================================================
 // Block processing
 //==============================================================================

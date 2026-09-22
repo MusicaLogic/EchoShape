@@ -121,8 +121,8 @@ void EchoShapeAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     // initialisation that you need..
     
     // EQ DSP-related
-    for (auto& eq : graphicEQ_)
-        eq.prepare(sampleRate, EQConstants::frequencies);
+    for (auto& fd : feedbackDelay_)
+        fd.prepare(sampleRate, EQConstants::frequencies);
     
     inputSpectrumAnalyzer.setSampleRate(sampleRate);
     outputSpectrumAnalyzer.setSampleRate(sampleRate);
@@ -202,7 +202,7 @@ void EchoShapeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     
     for (int channel = 0; channel < numChannels; ++channel)
     {
-        graphicEQ_[channel].process(
+        feedbackDelay_[channel].process(
                     buffer.getWritePointer(
                         static_cast<int>(channel)),
                     numSamples);
@@ -297,14 +297,14 @@ void EchoShapeAudioProcessor::setStateInformation (const void* data, int sizeInB
 
 void EchoShapeAudioProcessor::reset()
 {
-    for (auto& eq : graphicEQ_)
-        eq.reset();
+    for (auto& fd : feedbackDelay_)
+        fd.reset();
 }
 
 // EQ DSP-related functions
 void EchoShapeAudioProcessor::setGain(std::size_t band, float gainDb){
-    for (auto& eq : graphicEQ_)
-        eq.setGain(band, gainDb);
+    for (auto& fd : feedbackDelay_)
+        fd.setEQGain(band, gainDb);
 }
 void EchoShapeAudioProcessor::setGains(const GraphicEQ::Gains& gains){
     for (std::size_t i = 0;
@@ -313,14 +313,14 @@ void EchoShapeAudioProcessor::setGains(const GraphicEQ::Gains& gains){
     {
         eqState.gains[i] = gains[i];
     }
-    for (auto& eq : graphicEQ_)
-        eq.setGains(gains);
+    for (auto& fd : feedbackDelay_)
+        fd.setEQGains(gains);
 }
 float EchoShapeAudioProcessor::getGain(std::size_t band) const{
     if (band >= GraphicEQ::NumBands)
         return 0.0f;
 
-    return graphicEQ_[0].getGain(band);
+    return feedbackDelay_[0].getEQGain(band);
 }
 
 GraphicEQ::Gains EchoShapeAudioProcessor::getGains() const
@@ -347,8 +347,8 @@ void EchoShapeAudioProcessor::setEQState(
 {
     eqState = state;
 
-    for (auto& eq : graphicEQ_)
-        eq.setGains(eqState.gains);
+    for (auto& fd : feedbackDelay_)
+        fd.setEQGains(eqState.gains);
     
     // communicate to editor
     sendChangeMessage();

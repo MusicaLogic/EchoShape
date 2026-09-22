@@ -44,6 +44,8 @@ public:
     void setWet(float wet) noexcept;
 
     void setEQGains(const GraphicEQ::Gains& gains) noexcept;
+    void setEQGain(std::size_t band, float gainDb) noexcept;
+    float getEQGain(std::size_t band) const;
 
     //--------------------------------------------------------------------------
     // Processing

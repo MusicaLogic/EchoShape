@@ -11,6 +11,7 @@
 #include <JuceHeader.h>
 #include "State/EQState.h"
 #include "DSP/EQConstants.h"
+#include "DSP/FeedbackDelay.h"
 #include "DSP/GraphicEQ.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "DSP/SpectrumDataBuffer.h"
@@ -84,7 +85,7 @@ private:
     
     // EQ DSP-related
     static constexpr std::size_t NumChannels = 2;
-    std::array<GraphicEQ, NumChannels> graphicEQ_;
+    std::array<FeedbackDelay, NumChannels> feedbackDelay_;
     EQState eqState;
     
     SpectrumAnalyzer inputSpectrumAnalyzer;
